@@ -42,8 +42,7 @@ class LlamaService {
     return this.apiKey;
   }
 
-  // Changed from private to public to allow access from SubtopicList
-  async callLlamaAPI(prompt: string): Promise<any> {
+  private async callLlamaAPI(prompt: string): Promise<any> {
     const apiKey = this.getApiKey();
     
     if (!apiKey) {
@@ -65,7 +64,7 @@ class LlamaService {
             { role: "user", content: prompt }
           ],
           temperature: 0.7,
-          max_tokens: 1500 // Increased from 1024 to 1500 to ensure complete responses
+          max_tokens: 1024
         })
       });
 
@@ -75,13 +74,6 @@ class LlamaService {
       }
 
       const result = await response.json();
-      
-      // Check if result has expected structure before accessing properties
-      if (!result || !result.choices || !result.choices[0] || !result.choices[0].message) {
-        console.error("Unexpected API response structure:", result);
-        throw new Error("Received invalid response format from API");
-      }
-      
       return result.choices[0].message.content;
     } catch (error) {
       console.error("API call failed:", error);
@@ -94,54 +86,6 @@ class LlamaService {
     }
   }
 
-  // Enhanced parsing logic for more reliable JSON extraction
-  private extractJSON(text: string): any {
-    try {
-      // Try parsing directly first
-      return JSON.parse(text);
-    } catch (e) {
-      // Look for JSON in markdown code blocks
-      const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (jsonMatch) {
-        try {
-          return JSON.parse(jsonMatch[1].trim());
-        } catch (e) {
-          // If that fails, try to find any JSON-like structure
-          const possibleJSON = text.match(/{[\s\S]*}/);
-          if (possibleJSON) {
-            try {
-              return JSON.parse(possibleJSON[0]);
-            } catch (e) {
-              throw new Error("Could not parse JSON from response");
-            }
-          }
-        }
-      }
-      throw new Error("Could not extract JSON from API response");
-    }
-  }
-
-  // Create a method for generating fallback content for subtopics
-  createFallbackSubtopicContent(subtopic: string): SubtopicQuestions {
-    return {
-      subtopic: subtopic,
-      questions: [
-        {
-          question: `What is a key concept in ${subtopic}?`,
-          options: ["Option A", "Option B", "Option C", "Option D"],
-          correctAnswer: "Option A",
-          explanation: "This is a fallback question generated due to an API response issue."
-        },
-        {
-          question: `Which of the following is associated with ${subtopic}?`,
-          options: ["Option A", "Option B", "Option C", "Option D"],
-          correctAnswer: "Option B",
-          explanation: "This is a fallback question generated due to an API response issue."
-        }
-      ]
-    };
-  }
-
   // AGENT 1: Topic Divider
   async divideTopicIntoSubtopics(topic: string): Promise<DivisionResult> {
     try {
@@ -149,17 +93,24 @@ class LlamaService {
       
 Topic: ${topic}
 
-Format your response as a valid JSON object with only a "subtopics" field containing an array of strings, each representing a subtopic. Make sure the subtopics are comprehensive and cover important aspects of the main topic that would be tested in medical exams.
-
-Example format:
-{
-  "subtopics": ["Subtopic 1", "Subtopic 2", "Subtopic 3", "Subtopic 4", "Subtopic 5"]
-}`;
+Format your response as a valid JSON object with only a "subtopics" field containing an array of strings, each representing a subtopic. Make sure the subtopics are comprehensive and cover important aspects of the main topic that would be tested in medical exams.`;
 
       const result = await this.callLlamaAPI(prompt);
       
+      // Parse the result into our expected format
+      let parsedResult: DivisionResult;
+      
       try {
-        const parsedResult = this.extractJSON(result);
+        if (typeof result === 'string') {
+          // Extract JSON if surrounded by markdown code blocks or other text
+          const jsonMatch = result.match(/```json\s*([\s\S]*?)\s*```/) || 
+                          result.match(/{[\s\S]*}/);
+                          
+          const jsonStr = jsonMatch ? jsonMatch[0] : result;
+          parsedResult = JSON.parse(jsonStr.replace(/```json|```/g, '').trim());
+        } else {
+          parsedResult = result;
+        }
         
         // Validate format
         if (!parsedResult.subtopics || !Array.isArray(parsedResult.subtopics)) {
@@ -169,29 +120,11 @@ Example format:
         return parsedResult;
       } catch (e) {
         console.error("Failed to parse subtopics:", e, "Raw result:", result);
-        // Provide fallback subtopics based on the topic
-        return {
-          subtopics: [
-            `${topic} - Basic Concepts`,
-            `${topic} - Clinical Applications`,
-            `${topic} - Pathophysiology`,
-            `${topic} - Diagnosis`,
-            `${topic} - Treatment`
-          ]
-        };
+        throw new Error("Failed to parse the topic division response");
       }
     } catch (error) {
       console.error("Topic division failed:", error);
-      // Fallback subtopics if the API call fails completely
-      return {
-        subtopics: [
-          `${topic} - Basic Concepts`,
-          `${topic} - Clinical Applications`,
-          `${topic} - Pathophysiology`,
-          `${topic} - Diagnosis`,
-          `${topic} - Treatment`
-        ]
-      };
+      throw error;
     }
   }
 
@@ -207,7 +140,7 @@ Each question should:
 2. Have one clearly correct answer and 3 plausible distractors
 3. Include a brief explanation of why the correct answer is right
 
-Format your response STRICTLY as a valid JSON object with the following structure:
+Format your response as a valid JSON object with the following structure:
 {
   "subtopic": "${subtopic}",
   "questions": [
@@ -219,14 +152,24 @@ Format your response STRICTLY as a valid JSON object with the following structur
     }
     // more questions...
   ]
-}
-
-Do not include any text outside of this JSON structure.`;
+}`;
 
       const result = await this.callLlamaAPI(prompt);
       
+      // Parse the result into our expected format
+      let parsedResult: SubtopicQuestions;
+      
       try {
-        const parsedResult = this.extractJSON(result);
+        if (typeof result === 'string') {
+          // Extract JSON if surrounded by markdown code blocks or other text
+          const jsonMatch = result.match(/```json\s*([\s\S]*?)\s*```/) || 
+                          result.match(/{[\s\S]*}/);
+                          
+          const jsonStr = jsonMatch ? jsonMatch[0] : result;
+          parsedResult = JSON.parse(jsonStr.replace(/```json|```/g, '').trim());
+        } else {
+          parsedResult = result;
+        }
         
         // Validate format
         if (!parsedResult.questions || !Array.isArray(parsedResult.questions)) {
@@ -236,11 +179,11 @@ Do not include any text outside of this JSON structure.`;
         return parsedResult;
       } catch (e) {
         console.error("Failed to parse questions:", e, "Raw result:", result);
-        return this.createFallbackSubtopicContent(subtopic);
+        throw new Error("Failed to parse the generated questions");
       }
     } catch (error) {
       console.error("Question generation failed:", error);
-      return this.createFallbackSubtopicContent(subtopic);
+      throw error;
     }
   }
 
@@ -256,10 +199,11 @@ ${questionsStr}
 
 Your tasks:
 1. Evaluate each question for clinical relevance, clarity, and educational value
-2. Improve the language and formatting of questions where needed
-3. Ensure explanations are accurate and educational
+2. Remove or fix any questions that are unclear, too easy, too difficult, or have incorrect information
+3. Improve the language and formatting of questions where needed
+4. Ensure explanations are accurate and educational
 
-Return ONLY a valid JSON object in the following format:
+Return only the refined set of questions in the following JSON format:
 {
   "subtopic": "The same subtopic",
   "questions": [
@@ -272,14 +216,24 @@ Return ONLY a valid JSON object in the following format:
     // more questions...
   ],
   "feedback": "Brief summary of your quality assessment and improvements made"
-}
-
-Do not include any text outside of this JSON structure.`;
+}`;
 
       const result = await this.callLlamaAPI(prompt);
       
+      // Parse the result into our expected format
+      let parsedResult: RefinedQuestions;
+      
       try {
-        const parsedResult = this.extractJSON(result);
+        if (typeof result === 'string') {
+          // Extract JSON if surrounded by markdown code blocks or other text
+          const jsonMatch = result.match(/```json\s*([\s\S]*?)\s*```/) || 
+                          result.match(/{[\s\S]*}/);
+                          
+          const jsonStr = jsonMatch ? jsonMatch[0] : result;
+          parsedResult = JSON.parse(jsonStr.replace(/```json|```/g, '').trim());
+        } else {
+          parsedResult = result;
+        }
         
         // Validate format
         if (!parsedResult.questions || !Array.isArray(parsedResult.questions)) {
@@ -289,21 +243,11 @@ Do not include any text outside of this JSON structure.`;
         return parsedResult;
       } catch (e) {
         console.error("Failed to parse refined questions:", e, "Raw result:", result);
-        
-        // Return the original questions with a feedback note
-        return {
-          ...subtopicQuestions,
-          feedback: "Could not refine questions due to parsing error. Using original questions."
-        };
+        throw new Error("Failed to parse the refined questions");
       }
     } catch (error) {
       console.error("Question refinement failed:", error);
-      
-      // Return the original questions with a feedback note
-      return {
-        ...subtopicQuestions,
-        feedback: "Could not refine questions due to API error. Using original questions."
-      };
+      throw error;
     }
   }
 }

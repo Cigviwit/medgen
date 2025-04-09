@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, CircleDashed, Loader2, BookOpen, AlertTriangle } from "lucide-react";
+import { CheckCircle, CircleDashed, Loader2, BookOpen } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,6 @@ interface SubtopicListProps {
 
 const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps) => {
   const [processedSubtopics, setProcessedSubtopics] = useState<Record<string, RefinedQuestions>>({});
-  const [failedSubtopics, setFailedSubtopics] = useState<Record<string, string>>({});
   const [currentSubtopic, setCurrentSubtopic] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
@@ -38,15 +37,7 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
       if (currentSubtopic || isGenerating || isRefining) return;
       
       // If queue is empty, no more to process
-      if (processingQueue.length === 0) {
-        // If we've processed or failed all subtopics, notify parent
-        if ((Object.keys(processedSubtopics).length + Object.keys(failedSubtopics).length) === subtopics.subtopics.length) {
-          setTimeout(() => {
-            onAllSubtopicsProcessed(Object.values(processedSubtopics));
-          }, 1000);
-        }
-        return;
-      }
+      if (processingQueue.length === 0) return;
       
       // Get next subtopic from queue
       const nextSubtopic = processingQueue[0];
@@ -59,19 +50,17 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
     };
 
     processNextInQueue();
-  }, [processingQueue, currentSubtopic, isGenerating, isRefining, processedSubtopics, failedSubtopics, subtopics.subtopics.length, onAllSubtopicsProcessed]);
+  }, [processingQueue, currentSubtopic, isGenerating, isRefining]);
 
-  const handleRetrySubtopic = (subtopic: string) => {
-    // Remove from failed list
-    setFailedSubtopics(prev => {
-      const updated = { ...prev };
-      delete updated[subtopic];
-      return updated;
-    });
-    
-    // Add back to processing queue
-    setProcessingQueue(prev => [subtopic, ...prev]);
-  };
+  // Check if all subtopics are processed
+  useEffect(() => {
+    if (Object.keys(processedSubtopics).length === subtopics.subtopics.length && subtopics.subtopics.length > 0) {
+      // All subtopics processed, notify parent
+      setTimeout(() => {
+        onAllSubtopicsProcessed(Object.values(processedSubtopics));
+      }, 1000);
+    }
+  }, [processedSubtopics, subtopics.subtopics, onAllSubtopicsProcessed]);
 
   const handleProcessSubtopic = async (subtopic: string) => {
     if (currentSubtopic) return;
@@ -113,13 +102,6 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
       });
     } catch (error) {
       console.error("Failed to process subtopic:", error);
-      
-      // Add to failed subtopics
-      setFailedSubtopics(prev => ({
-        ...prev,
-        [subtopic]: error instanceof Error ? error.message : "Failed to process subtopic"
-      }));
-      
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to process subtopic",
@@ -131,9 +113,6 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
       setCurrentSubtopic(null);
     }
   };
-
-  // Remove the monkey-patching code that was trying to access the private method
-  // This was causing the TS2341 error
 
   return (
     <Card className="w-full medical-glass animate-slide-up">
@@ -162,7 +141,6 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
         <div className="space-y-3">
           {subtopics.subtopics.map((subtopic, index) => {
             const isProcessed = !!processedSubtopics[subtopic];
-            const isFailed = !!failedSubtopics[subtopic];
             const isProcessing = currentSubtopic === subtopic;
             const isQueued = processingQueue.includes(subtopic);
             
@@ -172,23 +150,20 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
                 className={cn(
                   "flex items-center justify-between p-3 rounded-md border transition-all duration-300",
                   isProcessed ? "bg-green-50 border-green-200" : 
-                  isFailed ? "bg-red-50 border-red-200" :
                   isProcessing ? "bg-blue-50 border-blue-200" : 
                   isQueued ? "bg-gray-50 border-gray-200" :
                   "bg-white border-gray-200 hover:border-medical-teal hover:shadow-sm"
                 )}
               >
-                <div className="flex items-center gap-3 flex-1">
+                <div className="flex items-center gap-3">
                   {isProcessed ? (
                     <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />
-                  ) : isFailed ? (
-                    <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
                   ) : isProcessing ? (
                     <Loader2 className="h-5 w-5 text-medical-blue animate-spin shrink-0" />
                   ) : (
                     <CircleDashed className="h-5 w-5 text-gray-400 shrink-0" />
                   )}
-                  <div className="flex-1">
+                  <div>
                     <p className="font-medium text-gray-800">{subtopic}</p>
                     {isProcessed && (
                       <div className="flex gap-2 mt-1">
@@ -204,14 +179,7 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
                         </Badge>
                       </div>
                     )}
-                    {isFailed && (
-                      <div className="flex gap-2 mt-1">
-                        <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
-                          Failed: {failedSubtopics[subtopic]}
-                        </Badge>
-                      </div>
-                    )}
-                    {!isProcessed && !isProcessing && !isFailed && isQueued && (
+                    {!isProcessed && !isProcessing && isQueued && (
                       <div className="flex gap-2 mt-1">
                         <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 border-gray-200">
                           Queued
@@ -220,16 +188,6 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
                     )}
                   </div>
                 </div>
-                
-                {isFailed && (
-                  <Button 
-                    size="sm"
-                    onClick={() => handleRetrySubtopic(subtopic)}
-                    className="bg-medical-blue hover:bg-medical-navy ml-2"
-                  >
-                    Retry
-                  </Button>
-                )}
               </div>
             );
           })}
