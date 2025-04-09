@@ -1,5 +1,5 @@
 
-import { Flask } from "lucide-react";
+import { Microscope } from "lucide-react";
 
 const Header = () => {
   return (
@@ -7,7 +7,7 @@ const Header = () => {
       <div className="container flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="bg-gradient-to-r from-medical-blue to-medical-teal p-2 rounded-md">
-            <Flask className="h-6 w-6 text-white" />
+            <Microscope className="h-6 w-6 text-white" />
           </div>
           <div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-medical-blue to-medical-teal bg-clip-text text-transparent">
