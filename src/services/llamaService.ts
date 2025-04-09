@@ -24,11 +24,11 @@ export interface RefinedQuestions {
   feedback: string;
 }
 
-// Main service to interact with Llama API
+// Main service to interact with Llama API via OpenRouter
 class LlamaService {
   private apiKey: string | null = null;
   private modelId = "meta-llama/llama-4-maverick:free";
-  private baseUrl = "https://api.replicate.com/v1/predictions";
+  private baseUrl = "https://openrouter.ai/api/v1/chat/completions";
 
   setApiKey(key: string) {
     this.apiKey = key;
@@ -53,33 +53,28 @@ class LlamaService {
       const response = await fetch(this.baseUrl, {
         method: "POST",
         headers: {
-          "Authorization": `Token ${apiKey}`,
-          "Content-Type": "application/json"
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": window.location.origin,
+          "X-Title": "MedQuest Alchemy"
         },
         body: JSON.stringify({
-          version: this.modelId,
-          input: {
-            prompt: prompt,
-            max_new_tokens: 1024,
-            temperature: 0.7
-          }
+          model: this.modelId,
+          messages: [
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 1024
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to call API");
+        throw new Error(errorData.error?.message || "Failed to call API");
       }
 
-      const prediction = await response.json();
-      
-      // Check prediction status
-      if (prediction.status === "succeeded") {
-        return prediction.output;
-      } else {
-        // For async APIs, poll for result
-        return this.pollForResult(prediction.id);
-      }
+      const result = await response.json();
+      return result.choices[0].message.content;
     } catch (error) {
       console.error("API call failed:", error);
       toast({
@@ -87,44 +82,6 @@ class LlamaService {
         description: error instanceof Error ? error.message : "Failed to call Llama API",
         variant: "destructive"
       });
-      throw error;
-    }
-  }
-
-  private async pollForResult(predictionId: string, attempts = 0): Promise<any> {
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      throw new Error("API key not set");
-    }
-
-    if (attempts > 30) { // 5 minutes max (30 * 10 seconds)
-      throw new Error("Prediction timed out");
-    }
-
-    try {
-      const response = await fetch(`${this.baseUrl}/${predictionId}`, {
-        headers: {
-          "Authorization": `Token ${apiKey}`,
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get prediction status");
-      }
-
-      const result = await response.json();
-      
-      if (result.status === "succeeded") {
-        return result.output;
-      } else if (result.status === "failed") {
-        throw new Error(result.error || "Prediction failed");
-      } else {
-        // Still processing, wait and try again
-        await new Promise(resolve => setTimeout(resolve, 10000)); // 10 second delay
-        return this.pollForResult(predictionId, attempts + 1);
-      }
-    } catch (error) {
-      console.error("Polling failed:", error);
       throw error;
     }
   }

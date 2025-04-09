@@ -63,7 +63,7 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
             API Key Set
           </CardTitle>
           <CardDescription>
-            Your Llama API key has been saved
+            Your OpenRouter API key has been saved
           </CardDescription>
         </CardHeader>
         <CardFooter>
@@ -87,14 +87,14 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
           Enter API Key
         </CardTitle>
         <CardDescription>
-          Please enter your Meta Llama 4 Maverick API key from Replicate
+          Please enter your OpenRouter API key to use Meta Llama 4 Maverick
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent>
           <Input
             type="password"
-            placeholder="r8_xxxx..."
+            placeholder="sk-or-..."
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             className="w-full pulse-border"
