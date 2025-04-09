@@ -132,59 +132,8 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
     }
   };
 
-  // Fix for the llamaService API error by creating a modified version of callLlamaAPI
-  useEffect(() => {
-    // IIFE to fix API response handling
-    (async () => {
-      try {
-        const originalCallLlamaAPI = llamaService.callLlamaAPI;
-        
-        // Monkey patch the API call function to handle potential undefined responses
-        // @ts-ignore - We're overriding the private method temporarily
-        llamaService.callLlamaAPI = async function(prompt: string) {
-          try {
-            const result = await originalCallLlamaAPI.call(this, prompt);
-            
-            // If result is undefined or doesn't have expected structure
-            if (!result || (typeof result === 'object' && !Object.keys(result).length)) {
-              // Mock a response with placeholder data
-              return JSON.stringify({
-                subtopic: prompt.includes("subtopic") ? prompt.split("Subtopic:")[1]?.trim().split("\n")[0] || "Unknown Subtopic" : "Unknown Subtopic",
-                questions: [
-                  {
-                    question: "Sample question about this topic?",
-                    options: ["Option A", "Option B", "Option C", "Option D"],
-                    correctAnswer: "Option A",
-                    explanation: "This is a placeholder explanation."
-                  }
-                ],
-                feedback: "Generated as fallback due to API issue."
-              });
-            }
-            
-            return result;
-          } catch (error) {
-            console.error("API call error intercepted:", error);
-            // Return fallback response
-            return JSON.stringify({
-              subtopic: prompt.includes("subtopic") ? prompt.split("Subtopic:")[1]?.trim().split("\n")[0] || "Unknown Subtopic" : "Unknown Subtopic",
-              questions: [
-                {
-                  question: "Sample question about this topic?",
-                  options: ["Option A", "Option B", "Option C", "Option D"],
-                  correctAnswer: "Option A",
-                  explanation: "This is a placeholder explanation."
-                }
-              ],
-              feedback: "Generated as fallback due to API issue."
-            });
-          }
-        };
-      } catch (error) {
-        console.error("Failed to modify llamaService:", error);
-      }
-    })();
-  }, []);
+  // Remove the monkey-patching code that was trying to access the private method
+  // This was causing the TS2341 error
 
   return (
     <Card className="w-full medical-glass animate-slide-up">
