@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, CircleDashed, Loader2, BookOpen } from "lucide-react";
@@ -19,11 +19,51 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
   const [currentSubtopic, setCurrentSubtopic] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
+  const [processingQueue, setProcessingQueue] = useState<string[]>([]);
 
   const progress = Object.keys(processedSubtopics).length / subtopics.subtopics.length * 100;
 
+  // Initialize processing queue when subtopics are received
+  useEffect(() => {
+    if (subtopics && subtopics.subtopics.length > 0) {
+      setProcessingQueue([...subtopics.subtopics]);
+    }
+  }, [subtopics]);
+
+  // Process next subtopic in queue when current one finishes
+  useEffect(() => {
+    const processNextInQueue = async () => {
+      // If we're already processing something, don't start another
+      if (currentSubtopic || isGenerating || isRefining) return;
+      
+      // If queue is empty, no more to process
+      if (processingQueue.length === 0) return;
+      
+      // Get next subtopic from queue
+      const nextSubtopic = processingQueue[0];
+      
+      // Remove it from the queue
+      setProcessingQueue(prev => prev.slice(1));
+      
+      // Process it
+      await handleProcessSubtopic(nextSubtopic);
+    };
+
+    processNextInQueue();
+  }, [processingQueue, currentSubtopic, isGenerating, isRefining]);
+
+  // Check if all subtopics are processed
+  useEffect(() => {
+    if (Object.keys(processedSubtopics).length === subtopics.subtopics.length && subtopics.subtopics.length > 0) {
+      // All subtopics processed, notify parent
+      setTimeout(() => {
+        onAllSubtopicsProcessed(Object.values(processedSubtopics));
+      }, 1000);
+    }
+  }, [processedSubtopics, subtopics.subtopics, onAllSubtopicsProcessed]);
+
   const handleProcessSubtopic = async (subtopic: string) => {
-    if (currentSubtopic || isGenerating || isRefining) return;
+    if (currentSubtopic) return;
     
     setCurrentSubtopic(subtopic);
     
@@ -71,15 +111,6 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
       setIsGenerating(false);
       setIsRefining(false);
       setCurrentSubtopic(null);
-      
-      // Check if all subtopics are processed
-      const updatedProcessedCount = Object.keys(processedSubtopics).length + 1;
-      if (updatedProcessedCount === subtopics.subtopics.length) {
-        // All subtopics processed, notify parent
-        setTimeout(() => {
-          onAllSubtopicsProcessed(Object.values(processedSubtopics));
-        }, 1000);
-      }
     }
   };
 
@@ -111,6 +142,7 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
           {subtopics.subtopics.map((subtopic, index) => {
             const isProcessed = !!processedSubtopics[subtopic];
             const isProcessing = currentSubtopic === subtopic;
+            const isQueued = processingQueue.includes(subtopic);
             
             return (
               <div 
@@ -119,6 +151,7 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
                   "flex items-center justify-between p-3 rounded-md border transition-all duration-300",
                   isProcessed ? "bg-green-50 border-green-200" : 
                   isProcessing ? "bg-blue-50 border-blue-200" : 
+                  isQueued ? "bg-gray-50 border-gray-200" :
                   "bg-white border-gray-200 hover:border-medical-teal hover:shadow-sm"
                 )}
               >
@@ -146,19 +179,15 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
                         </Badge>
                       </div>
                     )}
+                    {!isProcessed && !isProcessing && isQueued && (
+                      <div className="flex gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 border-gray-200">
+                          Queued
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
-                
-                {!isProcessed && !isProcessing && (
-                  <Button 
-                    size="sm"
-                    onClick={() => handleProcessSubtopic(subtopic)}
-                    disabled={!!currentSubtopic}
-                    className="bg-medical-blue hover:bg-medical-navy"
-                  >
-                    Process
-                  </Button>
-                )}
               </div>
             );
           })}
