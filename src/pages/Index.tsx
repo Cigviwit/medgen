@@ -50,10 +50,13 @@ const Index = () => {
                 <ResultDisplay results={results} />
               )}
               
-              {subtopics && (
+              {(subtopics || results) && (
                 <div className="pt-4 flex justify-center">
                   <button 
-                    onClick={() => setSubtopics(null)}
+                    onClick={() => {
+                      setSubtopics(null);
+                      setResults(null);
+                    }}
                     className="text-medical-blue hover:underline text-sm font-medium"
                   >
                     Start over with a new topic

@@ -20,6 +20,8 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [processingQueue, setProcessingQueue] = useState<string[]>([]);
+  const [retryCount, setRetryCount] = useState<Record<string, number>>({});
+  const [failedSubtopics, setFailedSubtopics] = useState<string[]>([]);
 
   const progress = Object.keys(processedSubtopics).length / subtopics.subtopics.length * 100;
 
@@ -27,6 +29,9 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
   useEffect(() => {
     if (subtopics && subtopics.subtopics.length > 0) {
       setProcessingQueue([...subtopics.subtopics]);
+      setProcessedSubtopics({});
+      setFailedSubtopics([]);
+      setRetryCount({});
     }
   }, [subtopics]);
 
@@ -54,13 +59,38 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
 
   // Check if all subtopics are processed
   useEffect(() => {
-    if (Object.keys(processedSubtopics).length === subtopics.subtopics.length && subtopics.subtopics.length > 0) {
-      // All subtopics processed, notify parent
+    const allProcessed = Object.keys(processedSubtopics).length === subtopics.subtopics.length;
+    const noRemainingInQueue = processingQueue.length === 0 && !currentSubtopic;
+    const noFailedOrAllFailed = failedSubtopics.length === 0 || 
+      (failedSubtopics.length === subtopics.subtopics.length);
+    
+    if (allProcessed && subtopics.subtopics.length > 0) {
+      // All subtopics processed successfully
       setTimeout(() => {
         onAllSubtopicsProcessed(Object.values(processedSubtopics));
       }, 1000);
+    } else if (noRemainingInQueue && failedSubtopics.length > 0 && !allProcessed) {
+      // Some subtopics failed, but we've processed everything we can
+      if (Object.keys(processedSubtopics).length > 0) {
+        // If we have at least some processed subtopics, send those
+        toast({
+          title: "Partial Success",
+          description: `${Object.keys(processedSubtopics).length} subtopics processed. ${failedSubtopics.length} failed.`,
+        });
+        
+        setTimeout(() => {
+          onAllSubtopicsProcessed(Object.values(processedSubtopics));
+        }, 1000);
+      } else {
+        // If everything failed, show error
+        toast({
+          title: "Error",
+          description: "All subtopics failed to process. Please try again later.",
+          variant: "destructive",
+        });
+      }
     }
-  }, [processedSubtopics, subtopics.subtopics, onAllSubtopicsProcessed]);
+  }, [processedSubtopics, subtopics.subtopics, processingQueue, currentSubtopic, failedSubtopics, onAllSubtopicsProcessed]);
 
   const handleProcessSubtopic = async (subtopic: string) => {
     if (currentSubtopic) return;
@@ -96,22 +126,60 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
         [subtopic]: refinedQuestions
       }));
       
+      // Remove from failed subtopics if it was there
+      setFailedSubtopics(prev => prev.filter(s => s !== subtopic));
+      
       toast({
         title: "Success",
         description: `Created ${refinedQuestions.questions.length} refined questions for "${subtopic}"`,
       });
     } catch (error) {
       console.error("Failed to process subtopic:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to process subtopic",
-        variant: "destructive",
-      });
+      
+      // Track retry count
+      const currentRetries = retryCount[subtopic] || 0;
+      
+      if (currentRetries < 2) {
+        // Add back to the queue for retrying
+        setProcessingQueue(prev => [...prev, subtopic]);
+        setRetryCount(prev => ({
+          ...prev,
+          [subtopic]: currentRetries + 1
+        }));
+        
+        toast({
+          title: "Retrying",
+          description: `Failed to process "${subtopic}". Retrying (${currentRetries + 1}/3)...`,
+        });
+      } else {
+        // Mark as failed after 3 retries
+        setFailedSubtopics(prev => [...prev, subtopic]);
+        
+        toast({
+          title: "Error",
+          description: `Failed to process "${subtopic}" after multiple attempts.`,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsGenerating(false);
       setIsRefining(false);
       setCurrentSubtopic(null);
     }
+  };
+
+  const handleManualRetry = (subtopic: string) => {
+    // Reset retry count for this subtopic
+    setRetryCount(prev => ({
+      ...prev,
+      [subtopic]: 0
+    }));
+    
+    // Remove from failed list
+    setFailedSubtopics(prev => prev.filter(s => s !== subtopic));
+    
+    // Add to processing queue
+    setProcessingQueue(prev => [...prev, subtopic]);
   };
 
   return (
@@ -143,6 +211,8 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
             const isProcessed = !!processedSubtopics[subtopic];
             const isProcessing = currentSubtopic === subtopic;
             const isQueued = processingQueue.includes(subtopic);
+            const isFailed = failedSubtopics.includes(subtopic);
+            const retries = retryCount[subtopic] || 0;
             
             return (
               <div 
@@ -151,6 +221,7 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
                   "flex items-center justify-between p-3 rounded-md border transition-all duration-300",
                   isProcessed ? "bg-green-50 border-green-200" : 
                   isProcessing ? "bg-blue-50 border-blue-200" : 
+                  isFailed ? "bg-red-50 border-red-200" :
                   isQueued ? "bg-gray-50 border-gray-200" :
                   "bg-white border-gray-200 hover:border-medical-teal hover:shadow-sm"
                 )}
@@ -160,6 +231,8 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
                     <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />
                   ) : isProcessing ? (
                     <Loader2 className="h-5 w-5 text-medical-blue animate-spin shrink-0" />
+                  ) : isFailed ? (
+                    <CircleDashed className="h-5 w-5 text-red-500 shrink-0" />
                   ) : (
                     <CircleDashed className="h-5 w-5 text-gray-400 shrink-0" />
                   )}
@@ -182,12 +255,30 @@ const SubtopicList = ({ subtopics, onAllSubtopicsProcessed }: SubtopicListProps)
                     {!isProcessed && !isProcessing && isQueued && (
                       <div className="flex gap-2 mt-1">
                         <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 border-gray-200">
-                          Queued
+                          Queued{retries > 0 ? ` (Retry ${retries}/3)` : ""}
+                        </Badge>
+                      </div>
+                    )}
+                    {isFailed && (
+                      <div className="flex gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                          Failed after 3 attempts
                         </Badge>
                       </div>
                     )}
                   </div>
                 </div>
+                
+                {isFailed && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => handleManualRetry(subtopic)}
+                    className="ml-2"
+                  >
+                    Retry
+                  </Button>
+                )}
               </div>
             );
           })}
