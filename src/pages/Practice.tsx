@@ -10,6 +10,7 @@ import { BookOpen, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import Header from "@/components/Header";
 import NavBar from "@/components/NavBar";
 import { toast } from "@/hooks/use-toast";
+import { Json } from "@/integrations/supabase/types";
 
 interface Topic {
   id: string;
@@ -107,13 +108,15 @@ const Practice = () => {
       
       if (error) throw error;
       
-      // Process the JSONB options field
+      // Process the JSONB options field - ensure proper type conversion
       const processedQuestions = data.map(q => ({
         ...q,
-        options: Array.isArray(q.options) ? q.options : []
+        options: Array.isArray(q.options) 
+          ? q.options.map(opt => String(opt)) // Convert each option to string
+          : []
       }));
       
-      setQuestions(processedQuestions);
+      setQuestions(processedQuestions as Question[]);
       setCurrentQuestionIndex(0);
       setSelectedOption(null);
       setIsAnswered(false);

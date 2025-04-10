@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,6 +10,7 @@ import { ClipboardCheck, ChevronLeft, Loader2, Check, X, BarChart } from "lucide
 import Header from "@/components/Header";
 import NavBar from "@/components/NavBar";
 import { toast } from "@/hooks/use-toast";
+import { Json } from "@/integrations/supabase/types";
 
 interface Topic {
   id: string;
@@ -143,16 +145,18 @@ const Test = () => {
       
       if (error) throw error;
       
-      // Process the JSONB options field
+      // Process the JSONB options field - ensure proper type conversion
       const processedQuestions = data.map(q => ({
         ...q,
-        options: Array.isArray(q.options) ? q.options : []
+        options: Array.isArray(q.options) 
+          ? q.options.map(opt => String(opt)) // Convert each option to string
+          : []
       }));
       
       // Shuffle the questions
       const shuffledQuestions = [...processedQuestions].sort(() => Math.random() - 0.5);
       
-      setQuestions(shuffledQuestions);
+      setQuestions(shuffledQuestions as Question[]);
       setUserAnswers([]);
       setCurrentQuestionIndex(0);
       setTestComplete(false);

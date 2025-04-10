@@ -92,7 +92,7 @@ const Index = () => {
         const questionsToInsert = result.questions.map(q => ({
           subtopic_id: subtopicId,
           question: q.question,
-          options: q.options,
+          options: q.options, // This is already a string array from the LLM
           correct_answer: q.correctAnswer,
           explanation: q.explanation
         }));
