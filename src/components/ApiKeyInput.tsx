@@ -18,9 +18,14 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
 
   useEffect(() => {
     const savedKey = localStorage.getItem("llamaApiKey");
-    if (savedKey) {
+    if (savedKey && savedKey.trim() !== "") {
       setIsSet(true);
       llamaService.setApiKey(savedKey);
+    } else {
+      // Clear API key if it's empty or not set
+      setIsSet(false);
+      localStorage.removeItem("llamaApiKey");
+      llamaService.setApiKey("");
     }
   }, []);
 

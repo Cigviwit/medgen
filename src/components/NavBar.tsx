@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import ApiKeyInput from "@/components/ApiKeyInput";
 import { useState } from "react";
 
@@ -82,6 +82,9 @@ const NavBar = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
               <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>API Key Settings</DialogTitle>
+                </DialogHeader>
                 <ApiKeyInput onKeySet={() => setDialogOpen(false)} />
               </DialogContent>
             </Dialog>
