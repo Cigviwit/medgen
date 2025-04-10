@@ -8,7 +8,7 @@ import { llamaService, DivisionResult } from "@/services/llamaService";
 import { toast } from "@/hooks/use-toast";
 
 interface TopicInputProps {
-  onSubtopicsGenerated: (result: DivisionResult) => void;
+  onSubtopicsGenerated: (result: DivisionResult, title: string) => void;
 }
 
 const TopicInput = ({ onSubtopicsGenerated }: TopicInputProps) => {
@@ -30,7 +30,7 @@ const TopicInput = ({ onSubtopicsGenerated }: TopicInputProps) => {
     setLoading(true);
     try {
       const result = await llamaService.divideTopicIntoSubtopics(topic);
-      onSubtopicsGenerated(result);
+      onSubtopicsGenerated(result, topic);
       toast({
         title: "Success",
         description: `Divided "${topic}" into ${result.subtopics.length} subtopics`,

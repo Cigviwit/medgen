@@ -67,7 +67,8 @@ const Index = () => {
       
       if (topicError) throw topicError;
       
-      const topicId = topicData.id;
+      const topicId = topicData?.id;
+      if (!topicId) throw new Error("Failed to get topic ID");
       
       // Step 2: Create subtopics and questions for each refined result
       for (const result of results) {
@@ -84,7 +85,8 @@ const Index = () => {
         
         if (subtopicError) throw subtopicError;
         
-        const subtopicId = subtopicData.id;
+        const subtopicId = subtopicData?.id;
+        if (!subtopicId) throw new Error("Failed to get subtopic ID");
         
         // Create questions for this subtopic
         const questionsToInsert = result.questions.map(q => ({

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -319,6 +318,7 @@ const Test = () => {
                 </div>
               </div>
             ) : !selectedSubtopic ? (
+              
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Button 
@@ -359,6 +359,7 @@ const Test = () => {
                 </Button>
               </div>
             ) : !testInProgress && !testComplete ? (
+              
               <div className="space-y-6">
                 <div className="flex items-center gap-2">
                   <Button 
@@ -410,6 +411,7 @@ const Test = () => {
                 </div>
               </div>
             ) : testInProgress ? (
+              
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium">
@@ -486,6 +488,7 @@ const Test = () => {
                 </div>
               </div>
             ) : testComplete ? (
+              
               <div className="space-y-6">
                 <div className="flex justify-center">
                   <div className="text-center bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
