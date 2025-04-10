@@ -48,6 +48,7 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
     localStorage.removeItem("llamaApiKey");
     setApiKey("");
     setIsSet(false);
+    llamaService.setApiKey("");
     toast({
       title: "API Key Removed",
       description: "Your API key has been cleared",

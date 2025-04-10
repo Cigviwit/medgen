@@ -16,11 +16,17 @@ import { Button } from "@/components/ui/button";
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [apiKeySet, setApiKeySet] = useState(!!localStorage.getItem("llamaApiKey"));
+  const [apiKeySet, setApiKeySet] = useState<boolean>(false);
   const [subtopics, setSubtopics] = useState<DivisionResult | null>(null);
   const [results, setResults] = useState<RefinedQuestions[] | null>(null);
   const [topicTitle, setTopicTitle] = useState("");
   const [savedTopicId, setSavedTopicId] = useState<string | null>(null);
+
+  // Check if API key exists in localStorage on component mount
+  useEffect(() => {
+    const savedKey = localStorage.getItem("llamaApiKey");
+    setApiKeySet(!!savedKey);
+  }, []);
 
   useEffect(() => {
     // Check if user is authenticated
