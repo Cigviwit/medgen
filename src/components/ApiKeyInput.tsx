@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { KeyRound, CheckCircle } from "lucide-react";
+import { KeyRound, CheckCircle, RefreshCw } from "lucide-react";
 import { llamaService } from "@/services/llamaService";
 import { toast } from "@/hooks/use-toast";
 
@@ -14,6 +14,7 @@ interface ApiKeyInputProps {
 const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
   const [apiKey, setApiKey] = useState("");
   const [isSet, setIsSet] = useState(false);
+  const [isChanging, setIsChanging] = useState(false);
 
   useEffect(() => {
     const savedKey = localStorage.getItem("llamaApiKey");
@@ -35,8 +36,10 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
       return;
     }
     
+    localStorage.setItem("llamaApiKey", apiKey);
     llamaService.setApiKey(apiKey);
     setIsSet(true);
+    setIsChanging(false);
     toast({
       title: "Success",
       description: "API key has been set",
@@ -55,7 +58,11 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
     });
   };
 
-  if (isSet) {
+  const handleChange = () => {
+    setIsChanging(true);
+  };
+
+  if (isSet && !isChanging) {
     return (
       <Card className="w-full max-w-md mx-auto medical-glass animate-fade-in">
         <CardHeader className="pb-2">
@@ -67,10 +74,18 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
             Your OpenRouter API key has been saved
           </CardDescription>
         </CardHeader>
-        <CardFooter>
+        <CardFooter className="flex gap-2">
           <Button 
             variant="outline" 
-            className="w-full hover:bg-red-50 hover:text-red-600 transition-colors" 
+            className="flex-1"
+            onClick={handleChange}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Change Key
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex-1 hover:bg-red-50 hover:text-red-600 transition-colors" 
             onClick={handleReset}
           >
             Reset API Key
@@ -85,7 +100,7 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
       <CardHeader>
         <CardTitle className="text-xl text-medical-blue flex items-center gap-2">
           <KeyRound className="h-5 w-5" />
-          Enter API Key
+          {isChanging ? "Change API Key" : "Enter API Key"}
         </CardTitle>
         <CardDescription>
           Please enter your OpenRouter API key to use Meta Llama 4 Maverick
@@ -101,8 +116,21 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
             className="w-full pulse-border"
           />
         </CardContent>
-        <CardFooter>
-          <Button type="submit" className="w-full bg-medical-blue hover:bg-medical-navy">
+        <CardFooter className="flex gap-2">
+          {isChanging && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => setIsChanging(false)}
+            >
+              Cancel
+            </Button>
+          )}
+          <Button 
+            type="submit" 
+            className="flex-1 bg-medical-blue hover:bg-medical-navy"
+          >
             Save API Key
           </Button>
         </CardFooter>
