@@ -7,8 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Practice from "./pages/Practice";
-import Test from "./pages/Test";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,8 +21,11 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/practice" element={<Practice />} />
-            <Route path="/test" element={<Test />} />
+            <Route path="/subjects/:subject" element={<Index />} />
+            <Route path="/question-bank" element={<Index />} />
+            <Route path="/exams" element={<Index />} />
+            <Route path="/profile" element={<Index />} />
+            <Route path="/progress" element={<Index />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
