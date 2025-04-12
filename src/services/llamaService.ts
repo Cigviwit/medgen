@@ -74,13 +74,6 @@ class LlamaService {
       }
 
       const result = await response.json();
-      
-      // Check if result has expected structure before accessing properties
-      if (!result || !result.choices || !result.choices[0] || !result.choices[0].message) {
-        console.error("Unexpected API response structure:", result);
-        throw new Error("Received invalid response format from API");
-      }
-      
       return result.choices[0].message.content;
     } catch (error) {
       console.error("API call failed:", error);
@@ -186,34 +179,11 @@ Format your response as a valid JSON object with the following structure:
         return parsedResult;
       } catch (e) {
         console.error("Failed to parse questions:", e, "Raw result:", result);
-        
-        // Fallback: Create a basic response with the subtopic
-        return {
-          subtopic: subtopic,
-          questions: [
-            {
-              question: `What is an important aspect of ${subtopic}?`,
-              options: ["Option A", "Option B", "Option C", "Option D"],
-              correctAnswer: "Option A",
-              explanation: "This is a placeholder explanation due to an error in processing the model's response."
-            }
-          ]
-        };
+        throw new Error("Failed to parse the generated questions");
       }
     } catch (error) {
       console.error("Question generation failed:", error);
-      // Return fallback questions
-      return {
-        subtopic: subtopic,
-        questions: [
-          {
-            question: `What is an important aspect of ${subtopic}?`,
-            options: ["Option A", "Option B", "Option C", "Option D"],
-            correctAnswer: "Option A",
-            explanation: "This is a placeholder question due to an API error."
-          }
-        ]
-      };
+      throw error;
     }
   }
 
@@ -273,21 +243,11 @@ Return only the refined set of questions in the following JSON format:
         return parsedResult;
       } catch (e) {
         console.error("Failed to parse refined questions:", e, "Raw result:", result);
-        
-        // Return the original questions with a feedback note
-        return {
-          ...subtopicQuestions,
-          feedback: "Could not refine questions due to parsing error. Using original questions."
-        };
+        throw new Error("Failed to parse the refined questions");
       }
     } catch (error) {
       console.error("Question refinement failed:", error);
-      
-      // Return the original questions with a feedback note
-      return {
-        ...subtopicQuestions,
-        feedback: "Could not refine questions due to API error. Using original questions."
-      };
+      throw error;
     }
   }
 }
