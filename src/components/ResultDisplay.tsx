@@ -129,13 +129,15 @@ const ResultDisplay = ({ results }: ResultDisplayProps) => {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button 
-          onClick={handleDownloadAll}
-          className="w-full bg-medical-blue hover:bg-medical-navy"
-        >
-          <FileDown className="h-4 w-4 mr-2" />
-          Download All Questions
-        </Button>
+        <div className="flex gap-3 flex-wrap">
+          <Button 
+            onClick={handleDownloadAll}
+            className="bg-medical-blue hover:bg-medical-navy flex-1"
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            Download All Questions
+          </Button>
+        </div>
         
         <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full h-auto flex flex-wrap gap-2 bg-medical-light justify-start overflow-x-auto">
