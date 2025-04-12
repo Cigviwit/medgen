@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, ArrowRight, ArrowLeft, Check, X, RotateCcw } from "lucide-react";
+import { FileText, ArrowRight, ArrowLeft, Check, X, RotateCcw, BarChart, Zap, PieChart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { RefinedQuestions } from "@/services/llamaService";
 import { toast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface QuizModeProps {
   results: RefinedQuestions[];
@@ -23,6 +24,7 @@ const QuizMode = ({ results, onExit }: QuizModeProps) => {
   const [answeredQuestions, setAnsweredQuestions] = useState<Record<string, boolean>>({});
   const [showExplanation, setShowExplanation] = useState(false);
   const [showHints, setShowHints] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState(false);
 
   // Flatten all questions into a single array
   const allQuestions = results.flatMap((result) => 
@@ -33,9 +35,14 @@ const QuizMode = ({ results, onExit }: QuizModeProps) => {
   const totalQuestions = allQuestions.length;
   const progress = (Object.keys(answeredQuestions).length / totalQuestions) * 100;
   
+  // Calculate summary statistics
+  const correctAnswers = Object.values(answeredQuestions).filter(Boolean).length;
+  const incorrectAnswers = Object.keys(answeredQuestions).length - correctAnswers;
+  const scorePercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+  
   // Generate a unique ID for the current question
   const getCurrentQuestionId = () => {
-    return `${currentQuestion.subtopic}-${currentQuestionIndex}`;
+    return `${currentQuestion?.subtopic}-${currentQuestionIndex}`;
   };
 
   const handleOptionSelect = (option: string) => {
@@ -69,9 +76,11 @@ const QuizMode = ({ results, onExit }: QuizModeProps) => {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       resetQuestionState();
     } else {
+      // Set quiz as completed when all questions are finished
+      setQuizCompleted(true);
       toast({
         title: "Quiz Completed",
-        description: "You've reached the end of the quiz!",
+        description: "Review your performance in the summary",
       });
     }
   };
@@ -101,6 +110,24 @@ const QuizMode = ({ results, onExit }: QuizModeProps) => {
     resetQuestionState();
   };
 
+  const handleRestartQuiz = () => {
+    setCurrentQuestionIndex(0);
+    setAnsweredQuestions({});
+    setQuizCompleted(false);
+    resetQuestionState();
+  };
+
+  // Function to get the status of a specific question
+  const getQuestionStatus = (index: number) => {
+    const question = allQuestions[index];
+    if (!question) return "unanswered";
+    
+    const questionId = `${question.subtopic}-${index}`;
+    if (!(questionId in answeredQuestions)) return "unanswered";
+    
+    return answeredQuestions[questionId] ? "correct" : "incorrect";
+  };
+
   if (!currentQuestion) {
     return (
       <Card className="w-full medical-glass animate-slide-up">
@@ -112,6 +139,169 @@ const QuizMode = ({ results, onExit }: QuizModeProps) => {
         </CardHeader>
         <CardContent>
           <Button onClick={onExit}>Return to Generation</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (quizCompleted) {
+    return (
+      <Card className="w-full medical-glass animate-slide-up">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl text-medical-blue">Quiz Completed</CardTitle>
+              <CardDescription>
+                Review your performance on this quiz
+              </CardDescription>
+            </div>
+            <div className="agent-icon">
+              <BarChart className="h-5 w-5" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Score Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-white shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center">
+                  <PieChart className="h-8 w-8 text-medical-blue mb-2" />
+                  <h3 className="text-xl font-bold text-medical-navy">{scorePercentage.toFixed(1)}%</h3>
+                  <p className="text-sm text-gray-500">Overall Score</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-white shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center">
+                  <Check className="h-8 w-8 text-green-500 mb-2" />
+                  <h3 className="text-xl font-bold text-green-700">{correctAnswers}</h3>
+                  <p className="text-sm text-gray-500">Correct Answers</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-white shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center">
+                  <X className="h-8 w-8 text-red-500 mb-2" />
+                  <h3 className="text-xl font-bold text-red-700">{incorrectAnswers}</h3>
+                  <p className="text-sm text-gray-500">Incorrect Answers</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Question Review */}
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="w-full bg-medical-light justify-start mb-4">
+              <TabsTrigger value="all" className="flex-1">All Questions</TabsTrigger>
+              <TabsTrigger value="correct" className="flex-1">Correct</TabsTrigger>
+              <TabsTrigger value="incorrect" className="flex-1">Incorrect</TabsTrigger>
+              <TabsTrigger value="unanswered" className="flex-1">Unanswered</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="all" className="mt-0">
+              <div className="space-y-4">
+                {allQuestions.map((question, index) => {
+                  const status = getQuestionStatus(index);
+                  return (
+                    <QuestionReviewCard 
+                      key={index}
+                      question={question}
+                      questionNumber={index + 1}
+                      status={status}
+                      selectedAnswer={
+                        status !== "unanswered" 
+                          ? allQuestions[index].options.find(
+                              (_, optIndex) => allQuestions[index].options[optIndex] === answeredQuestions[`${question.subtopic}-${index}`]
+                            ) 
+                          : undefined
+                      }
+                    />
+                  );
+                })}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="correct" className="mt-0">
+              <div className="space-y-4">
+                {allQuestions.map((question, index) => {
+                  const status = getQuestionStatus(index);
+                  if (status === "correct") {
+                    return (
+                      <QuestionReviewCard 
+                        key={index}
+                        question={question}
+                        questionNumber={index + 1}
+                        status={status}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="incorrect" className="mt-0">
+              <div className="space-y-4">
+                {allQuestions.map((question, index) => {
+                  const status = getQuestionStatus(index);
+                  if (status === "incorrect") {
+                    return (
+                      <QuestionReviewCard 
+                        key={index}
+                        question={question}
+                        questionNumber={index + 1}
+                        status={status}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="unanswered" className="mt-0">
+              <div className="space-y-4">
+                {allQuestions.map((question, index) => {
+                  const status = getQuestionStatus(index);
+                  if (status === "unanswered") {
+                    return (
+                      <QuestionReviewCard 
+                        key={index}
+                        question={question}
+                        questionNumber={index + 1}
+                        status={status}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </TabsContent>
+          </Tabs>
+          
+          <div className="flex gap-2 pt-4 flex-wrap">
+            <Button 
+              variant="outline" 
+              onClick={handleRestartQuiz}
+              className="flex-1 bg-white"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Restart Quiz
+            </Button>
+            
+            <Button 
+              onClick={onExit}
+              className="flex-1 bg-medical-blue hover:bg-medical-navy"
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              Generate New Questions
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -273,6 +463,104 @@ const QuizMode = ({ results, onExit }: QuizModeProps) => {
         </div>
       </CardContent>
     </Card>
+  );
+};
+
+// Question Review Card Component
+interface QuestionReviewCardProps {
+  question: any;
+  questionNumber: number;
+  status: "correct" | "incorrect" | "unanswered";
+  selectedAnswer?: string;
+}
+
+const QuestionReviewCard = ({ question, questionNumber, status, selectedAnswer }: QuestionReviewCardProps) => {
+  const [expanded, setExpanded] = useState(false);
+  
+  const statusColors = {
+    correct: "bg-green-50 border-green-200",
+    incorrect: "bg-red-50 border-red-200",
+    unanswered: "bg-gray-50 border-gray-200"
+  };
+  
+  const statusIcons = {
+    correct: <Check className="h-5 w-5 text-green-600" />,
+    incorrect: <X className="h-5 w-5 text-red-600" />,
+    unanswered: <Badge className="bg-gray-200 text-gray-700 hover:bg-gray-200">Not Attempted</Badge>
+  };
+  
+  return (
+    <div className={`rounded-lg p-4 ${statusColors[status]} transition-all`}>
+      <div className="flex justify-between items-start mb-2">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-gray-700">Q{questionNumber}:</span>
+          <span className="text-sm text-gray-500">{question.subtopic}</span>
+        </div>
+        <div>
+          {statusIcons[status]}
+        </div>
+      </div>
+      
+      <div className="mb-3">{question.question}</div>
+      
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={() => setExpanded(!expanded)}
+        className="w-full justify-center mb-2 bg-white"
+      >
+        {expanded ? "Hide Details" : "Show Details"}
+      </Button>
+      
+      {expanded && (
+        <div className="mt-3 space-y-3 pt-3 border-t border-gray-200">
+          <div className="space-y-2">
+            {question.options.map((option: string, index: number) => {
+              const letters = ["A", "B", "C", "D"];
+              const isCorrect = option === question.correctAnswer;
+              const isSelected = option === selectedAnswer;
+              
+              return (
+                <div 
+                  key={index}
+                  className={`flex items-start gap-3 p-2 rounded ${
+                    isCorrect
+                      ? "bg-green-50"
+                      : isSelected && !isCorrect
+                      ? "bg-red-50"
+                      : "bg-gray-50"
+                  }`}
+                >
+                  <div className="flex gap-2 items-center flex-1">
+                    <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                      isCorrect
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-200 text-gray-700"
+                    }`}>
+                      {letters[index]}
+                    </div>
+                    <span className={isCorrect ? "font-medium text-green-700" : ""}>
+                      {option}
+                    </span>
+                    {isCorrect && (
+                      <Check className="h-4 w-4 text-green-500 ml-auto" />
+                    )}
+                    {isSelected && !isCorrect && (
+                      <X className="h-4 w-4 text-red-500 ml-auto" />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+            <h4 className="font-medium text-medical-blue mb-1">Explanation:</h4>
+            <p className="text-gray-700 text-sm">{question.explanation}</p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
