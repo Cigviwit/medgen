@@ -17,14 +17,9 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
 
   useEffect(() => {
     const savedKey = localStorage.getItem("llamaApiKey");
-    if (savedKey && savedKey.trim() !== "") {
+    if (savedKey) {
       setIsSet(true);
       llamaService.setApiKey(savedKey);
-    } else {
-      // Clear API key if it's empty or not set
-      setIsSet(false);
-      localStorage.removeItem("llamaApiKey");
-      llamaService.setApiKey("");
     }
   }, []);
 
@@ -40,7 +35,6 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
       return;
     }
     
-    localStorage.setItem("llamaApiKey", apiKey);
     llamaService.setApiKey(apiKey);
     setIsSet(true);
     toast({
@@ -50,24 +44,35 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
     onKeySet();
   };
 
+  const handleReset = () => {
+    localStorage.removeItem("llamaApiKey");
+    setApiKey("");
+    setIsSet(false);
+    toast({
+      title: "API Key Removed",
+      description: "Your API key has been cleared",
+    });
+  };
+
   if (isSet) {
     return (
       <Card className="w-full max-w-md mx-auto medical-glass animate-fade-in">
         <CardHeader className="pb-2">
           <CardTitle className="text-xl text-medical-blue flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-green-500" />
-            Configuration Complete
+            API Key Set
           </CardTitle>
           <CardDescription>
-            You're ready to generate MBBS MCQs
+            Your OpenRouter API key has been saved
           </CardDescription>
         </CardHeader>
         <CardFooter>
           <Button 
-            className="w-full bg-medical-blue hover:bg-medical-navy"
-            onClick={onKeySet}
+            variant="outline" 
+            className="w-full hover:bg-red-50 hover:text-red-600 transition-colors" 
+            onClick={handleReset}
           >
-            Continue
+            Reset API Key
           </Button>
         </CardFooter>
       </Card>
@@ -79,10 +84,10 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
       <CardHeader>
         <CardTitle className="text-xl text-medical-blue flex items-center gap-2">
           <KeyRound className="h-5 w-5" />
-          Welcome to MedQuest
+          Enter API Key
         </CardTitle>
         <CardDescription>
-          Enter your API key to start generating MBBS MCQs
+          Please enter your OpenRouter API key to use Meta Llama 4 Maverick
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -96,11 +101,8 @@ const ApiKeyInput = ({ onKeySet }: ApiKeyInputProps) => {
           />
         </CardContent>
         <CardFooter>
-          <Button 
-            type="submit" 
-            className="w-full bg-medical-blue hover:bg-medical-navy"
-          >
-            Start Using MedQuest
+          <Button type="submit" className="w-full bg-medical-blue hover:bg-medical-navy">
+            Save API Key
           </Button>
         </CardFooter>
       </form>
